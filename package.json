@@ -1,5 +1,5 @@
 {
-  "name": "koa-joi-router-docs",
+  "name": "koa-joi-router-to-swagger-json",
   "version": "0.1.9",
   "description": "OpenAPI(aka Swagger) API docs generator for koa-joi-router.",
   "main": "index.js",
@@ -12,12 +12,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/o2team/koa-joi-router-docs"
+    "url": "https://github.com/zouyixiong/koa-joi-router-to-swagger-json"
   },
   "license": "MIT",
   "dependencies": {
     "lodash": "^4.15.0",
-    "o2team-joi-to-swagger": "^1.2.0",
     "path-to-regexp": "^1.5.3"
   },
   "devDependencies": {

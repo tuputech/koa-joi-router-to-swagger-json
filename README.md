@@ -17,9 +17,9 @@ test suites, AWS Lambda/serverless, etc.
 ## Install
 ```bash
 # use npm
-npm install koa-joi-router-docs --save
+npm install koa-joi-router-to-swagger-json --save
 # use yarn
-yarn add koa-joi-router-docs
+yarn add koa-joi-router-to-swagger-json
 ```
 
 ## Example

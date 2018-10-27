@@ -4,7 +4,7 @@ Koa API Docs Example
 # Install
 
 ```bash
-git clone https://github.com/o2team/koa-joi-router-docs.git
+git clone https://github.com/zouyixiong/koa-joi-router-to-swagger-json.git
 cd example/
 npm install
 ```
