@@ -7,44 +7,8 @@ const SwaggerAPI = require('./lib/api');
 exports.SwaggerAPI = SwaggerAPI
 
 
-exports.middleware = function(koaRouter, options = {}) {
-    // 修改自动生成的 swagger json，实现 swagger UI 对 文件上传到支持
-    // 1、route.validate.type === 'multipart'  # 设置content-type【koa-joi-router 本身支持的】
-    // 2、route.validate.multipart # 将要form表单字段放这里【koa-joi-router 本身不支持的】
-    // 3、faceFile: Joi.any().meta({ swaggerType: 'file' }) # 文件字段设置 any类型和meta信息
-    // 4、multipartToQuery(router) # 详见函数说明
-    // 5、modifyMultipartSwaggerJSON(_router, spec) # 详见函数说明
 
-    const _router = multipartToQuery(koaRouter)
 
-    const swagger = new SwaggerAPI()
-    swagger.addJoiRouter(_router)
-    const spec = swagger.generateSpec(
-        {
-            info: _.cloneDeep(options.info),
-            basePath: options.basePath || '/',
-        },
-        {
-            defaultResponses: {} // Custom default responses if you don't like default 200
-        }
-    )
-
-    modifyMultipartSwaggerJSON(_router, spec)
-
-    const JSONString = JSON.stringify(spec, null, ' ')
-
-    koaRouter.route([
-        {
-            method: 'GET',
-            path: options.jsonPath || '/swagger.json',
-            handler: ctx => {
-                ctx.body = JSONString
-            },
-        },
-    ])
-
-    return koaRouter.middleware()
-}
 
 
 
@@ -54,13 +18,18 @@ exports.middleware = function(koaRouter, options = {}) {
  * 2 将全部 validate.multipart 合并到 validate.query，让 SwaggerAPI 将参数生成到 post.parameters，方便后续修改
  * @param {*} router
  */
-function multipartToQuery (router) {
+function parseJoiRouter(router) {
     const _router = _.cloneDeep(router)
+    const routes = _router.routes
 
-    _router.routes.map(route => {
+    _router.routes = []
+    routes.forEach(route => {
+        if (!route.meta || !route.meta.swagger || !route.meta.swagger.tags || route.meta.swagger.tags.length === 0)
+            return
         if (route.validate.multipart) {
             route.validate.query = Object.assign({}, route.validate.query, route.validate.multipart)
         }
+        _router.routes.push(route)
     })
     return _router
 }
@@ -106,3 +75,73 @@ function modifyMultipartSwaggerJSON(_router, spec) {
         }
     })
 }
+
+
+
+
+
+function genDocJson(koaRouter, options = {}) {
+    // 修改自动生成的 swagger json，实现 swagger UI 对 文件上传到支持
+    // 1、route.validate.type === 'multipart'  # 设置content-type【koa-joi-router 本身支持的】
+    // 2、route.validate.multipart # 将要form表单字段放这里【koa-joi-router 本身不支持的】
+    // 3、faceFile: Joi.any().meta({ swaggerType: 'file' }) # 文件字段设置 any类型和meta信息
+    // 4、multipartToQuery(router) # 详见函数说明
+    // 5、modifyMultipartSwaggerJSON(_router, spec) # 详见函数说明
+
+    const _router = parseJoiRouter(koaRouter)
+
+    const swagger = new SwaggerAPI()
+    swagger.addJoiRouter(_router)
+    const spec = swagger.generateSpec(
+        {
+            info: _.cloneDeep(options.info),
+            basePath: options.basePath || '/',
+        },
+        {
+            defaultResponses: {} // Custom default responses if you don't like default 200
+        }
+    )
+
+    modifyMultipartSwaggerJSON(_router, spec)
+
+    return JSON.stringify(spec, null, ' ')
+}
+
+
+
+function getRoutes(koaRouter, options) {
+    const swaggerJSON = genDocJson(koaRouter, options)
+    return [
+        {
+            method: 'GET',
+            path: options.jsonPath || '/swagger.json',
+            handler(ctx) {
+                ctx.body = swaggerJSON
+            },
+        },
+    ]
+}
+
+exports.route = getRoutes
+
+
+exports.middlewares = function(koaRouter, options, jsonRoute = false) {
+    const getSwaggerJSON = (opt = options) => {
+        return genDocJson(koaRouter, opt)
+    }
+
+    const swaggerJSON = genDocJson(koaRouter, options)
+
+    const middleware = async (ctx, next) => {
+        ctx.getSwaggerJSON = getSwaggerJSON
+        ctx.swaggerJSON = swaggerJSON
+        await next()
+    }
+    if (!jsonRoute) return [ middleware ]
+
+    const routes = getRoutes(koaRouter, options)
+    koaRouter.route(routes)
+    return [ middleware, koaRouter.middleware(), ]
+}
+
+
